@@ -1,0 +1,25 @@
+[project]
+name = "aim"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "anyio>=4.9.0",
+    "browser-use>=0.1.48",
+    "dotenv>=0.9.9",
+    "fastapi>=0.115.12",
+    "langchain-openai>=0.3.11",
+    "langgraph>=0.4.5",
+    "mypy>=1.15.0",
+    "prettyprinter>=0.18.0",
+    "pydantic>=2.10.6",
+    "pyobjtojson>=0.3",
+    "pytest>=8.3.5",
+    "returns[compatible-mypy]>=0.25.0",
+    "uvicorn>=0.34.2",
+]
+
+[tool.mypy]
+# plugins = ["returns.contrib.mypy.returns_plugin"]
+strict = "true"

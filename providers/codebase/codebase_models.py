@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class CodebaseOperation(Enum):
@@ -39,7 +39,9 @@ class UserProject(BaseModel):
 
     project_address: str
     metadata: Optional[Dict[str, Any]] = None
-    last_active_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    last_active_timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
     class Config:
         frozen = True

@@ -1,6 +1,6 @@
 import asyncio
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from returns.result import Result, Success, Failure
 from returns.maybe import Maybe
@@ -69,7 +69,7 @@ def add_user_context_and_metadata(
     context_config: BrowserContextConfig,
     user_meta: UserMetadata,
 ) -> FutureResult[BrowserState, BrowserError]:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if user_id in current_state.user_contexts:
         # User context exists. We will only update the timestamp of their metadata.

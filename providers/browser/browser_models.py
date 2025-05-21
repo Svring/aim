@@ -1,7 +1,7 @@
 from typing import Optional, Dict
 from pydantic import BaseModel, Field
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from browser_use import BrowserConfig, Browser
 from browser_use.browser.context import BrowserContextConfig, BrowserContext
@@ -13,7 +13,9 @@ class UserMetadata(BaseModel):
     """
 
     website_url: str
-    last_active_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    last_active_timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
     class Config:
         frozen = True

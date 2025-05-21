@@ -2,7 +2,7 @@
 
 import httpx
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from returns.result import Result, Success, Failure
 from returns.future import FutureResult, future_safe
@@ -41,7 +41,7 @@ async def _check_project_health(project_address: str) -> bool:
     Performs a health check on the project's /galatea/health endpoint.
     Raises httpx.HTTPStatusError for non-2xx responses or httpx.RequestError for network issues.
     """
-    health_check_url = f"{project_address}/galatea/health"
+    health_check_url = f"{project_address}/galatea/api/health"
     async with httpx.AsyncClient() as client:
         response = await client.get(health_check_url, timeout=5.0)  # 5 second timeout
         response.raise_for_status()  # Raises HTTPStatusError for 4xx/5xx responses
@@ -68,7 +68,7 @@ def add_user_project(
     If user_id exists and project_address/metadata are identical, it updates the last_active_timestamp.
     Health check is performed for new projects or when project_address changes.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     new_project_details_for_comparison = UserProject(
         project_address=project_address,
         metadata=metadata,

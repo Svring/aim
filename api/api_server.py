@@ -17,8 +17,8 @@ from .api_models import (
     CodebaseBasicFlowRequest,
     CodebaseBasicFlowResponse,
 )
-from workflows.context_flow import run_context_flow
-from workflows.code_workflows.basic_code_flow import run_basic_code_flow
+from workflows.browser_workflows.context_browser_flow import run_context_flow
+from workflows.codebase_workflows.basic_code_flow import run_basic_code_flow
 from providers.browser.browser_provider import (
     create_browser_state,
     add_user_context_and_metadata,

@@ -1,6 +1,6 @@
 from returns.unsafe import unsafe_perform_io
 
-from agents.code_agent.basic_code_agent import run_basic_code_agent
+from agents.codebase_agent.basic_code_agent import run_basic_code_agent
 
 
 async def run_basic_code_flow(project_address: str, prompt: str):

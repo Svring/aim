@@ -2,7 +2,7 @@ from returns.unsafe import unsafe_perform_io
 from browser_use.browser.context import BrowserContext
 
 from providers.browser.browser_models import UserMetadata
-from agents.browser_agent.context_agent import run_context_agent
+from agents.browser_agent.context_browser_agent import run_context_agent
 
 
 async def run_context_flow(

@@ -15,10 +15,12 @@ from .api_models import (
     BrowserContextFlowRequest,
     BrowserContextFlowResponse,
     CodebaseBasicFlowRequest,
-    CodebaseBasicFlowResponse,
+    MixedFlowRequest,
 )
-from workflows.browser_workflows.context_browser_flow import run_context_flow
+from workflows.browser_workflows.context_browser_flow import run_context_browser_flow
 from workflows.codebase_workflows.basic_code_flow import run_basic_code_flow
+
+from providers.browser.browser_models import default_browser_context_config
 from providers.browser.browser_provider import (
     create_browser_state,
     add_user_context_and_metadata,
@@ -196,13 +198,15 @@ async def browser_context_flow(request: Request):
 
     context = context_result.unwrap()
 
-    history = await run_context_flow(
+    history = await run_context_browser_flow(
         context,
         validated_data.metadata,
         validated_data.prompt,
     )
 
-    return BrowserContextFlowResponse(history=history).model_dump_json()
+    return BrowserContextFlowResponse(
+        final_result=history.final_result()
+    ).model_dump_json()
 
 
 @app.post("/codebase/basic_flow")
@@ -235,10 +239,61 @@ async def codebase_basic_flow(request: Request):
     )  # Update global state
 
     # Proceed with the basic code flow
-    code = await run_basic_code_flow(
+    await run_basic_code_flow(
         validated_data.project.project_address, validated_data.prompt
     )
-    return CodebaseBasicFlowResponse(code=code).model_dump_json()
+
+    # Return a simple success string instead of a CodebaseBasicFlowResponse
+    return "Task completed successfully"
+
+
+@app.post("/mixed_flow")
+async def mixed_flow(request: Request):
+    global browser_state
+    global codebase_state
+    data = await request.json()
+    validated_data = MixedFlowRequest(**data)
+
+    if not validated_data.user_id in browser_state.user_contexts.keys():
+        result = await add_user_context_and_metadata(
+            browser_state,
+            validated_data.user_id,
+            validated_data.context_config or default_browser_context_config,
+            validated_data.browser_metadata,
+        )
+
+        if is_successful(result):
+            browser_state = unsafe_perform_io(result.unwrap())
+        else:
+            return {"error": f"Failed to create context: {result.failure().message}"}
+
+    context_result = get_user_context(browser_state, validated_data.user_id)
+    if not is_successful(context_result):
+        return {"error": f"Failed to get context: {context_result.failure().message}"}
+
+    context = context_result.unwrap()
+
+    add_project_result_fr = add_user_project(
+        current_state=codebase_state,
+        user_id=validated_data.user_id,
+        project_address=validated_data.project.project_address,
+        metadata=validated_data.project.metadata,
+    )
+    add_project_result = (
+        await add_project_result_fr.awaitable()
+    )  # Get the Result[CodebaseState, CodebaseError]
+
+    if not is_successful(add_project_result):
+        error_details = unsafe_perform_io(add_project_result.failure())
+        return {
+            "error": f"Failed to add or update user project: {error_details.message}",
+            "details": error_details.details,
+            "operation": error_details.operation_name.value,
+        }, 500  # Internal Server Error or appropriate status
+
+    codebase_state = unsafe_perform_io(
+        add_project_result.unwrap()
+    )  # Update global state
 
 
 if __name__ == "__main__":

@@ -6,6 +6,17 @@ from datetime import datetime, timezone
 from browser_use import BrowserConfig, Browser
 from browser_use.browser.context import BrowserContextConfig, BrowserContext
 
+default_browser_context_config = BrowserContextConfig(
+    window_width=1920,
+    window_height=1080,
+    locale="en-US",
+    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    allowed_domains=[],
+    maximum_wait_page_load_time=10,
+    highlight_elements=True,
+    keep_alive=True,
+)
+
 
 class UserMetadata(BaseModel):
     """

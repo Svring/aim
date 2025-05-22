@@ -5,7 +5,7 @@ from providers.browser.browser_models import UserMetadata
 from agents.browser_agent.context_browser_agent import run_context_agent
 
 
-async def run_context_flow(
+async def run_context_browser_flow(
     context: BrowserContext,
     metadata: UserMetadata,
     prompt: str,

@@ -8,7 +8,7 @@ from providers.backbone.backbone_provider import get_sealos_model
 
 
 @future_safe
-async def run_full_agent(
+async def run_full_browser_agent(
     context: BrowserContext, website_url: str, prompt: str
 ) -> AgentHistoryList:
     agent = Agent(

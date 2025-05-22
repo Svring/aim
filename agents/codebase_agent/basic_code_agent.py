@@ -136,6 +136,7 @@ async def run_basic_code_agent(project_address: str, prompt: str) -> str:
                     task_details.response
                     and task_details.response.raw_codex_output is not None
                 ):
+                    print(f"Task {task_id} completed successfully.")
                     return task_details.response.raw_codex_output
                 else:
                     raise Exception(

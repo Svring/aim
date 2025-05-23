@@ -13,7 +13,7 @@ async def run_full_browser_agent(
 ) -> AgentHistoryList:
     agent = Agent(
         task=prompt,
-        llm=get_sealos_model("gpt-4o"),
+        llm=get_sealos_model("claude-opus-4-20250514"),
         browser_context=context,
         initial_actions=[{"open_tab": {"url": website_url}}],
     )

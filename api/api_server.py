@@ -5,20 +5,28 @@ import uvicorn
 import asyncio
 from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
+import json
 
 from returns.pipeline import is_successful
 from returns.unsafe import unsafe_perform_io
 
 from browser_use import BrowserConfig
+from browser_use.browser.context import BrowserContext
 
 from .api_models import (
     BrowserContextFlowRequest,
     BrowserContextFlowResponse,
     CodebaseBasicFlowRequest,
     MixedFlowRequest,
+    BrowserFullFlowRequest,
+    BrowserFullFlowResponse,
+    CodebaseFullFlowRequest,
+    CodebaseFullFlowResponse,
 )
 from workflows.browser_workflows.context_browser_flow import run_context_browser_flow
 from workflows.codebase_workflows.basic_code_flow import run_basic_code_flow
+from workflows.browser_workflows.full_browser_flow import run_full_browser_flow
+from workflows.codebase_workflows.full_code_flow import run_full_code_flow
 
 from providers.browser.browser_models import default_browser_context_config
 from providers.browser.browser_provider import (
@@ -245,6 +253,53 @@ async def codebase_basic_flow(request: Request):
 
     # Return a simple success string instead of a CodebaseBasicFlowResponse
     return "Task completed successfully"
+
+
+@app.post("/browser/full_flow")
+async def browser_full_flow(request: Request):
+    global browser_state
+    data = await request.json()
+    validated_data = BrowserFullFlowRequest(**data)
+
+    if validated_data.url is None:
+        return {"error": "URL is required"}
+
+    browser_flow_result = await run_full_browser_flow(
+        BrowserContext(
+            browser=browser_state.browser_instance,
+            config=default_browser_context_config,
+        ),
+        validated_data.url,
+        validated_data.prompt,
+    )
+
+    return BrowserFullFlowResponse(
+        final_result=browser_flow_result.final_result,
+        urls=browser_flow_result.urls,
+        screenshot_urls=browser_flow_result.screenshot_urls,
+        model_actions=browser_flow_result.model_actions,
+    ).model_dump_json()
+
+
+@app.post("/codebase/full_flow")
+async def codebase_full_flow(request: Request):
+    global codebase_state
+    data = await request.json()
+    validated_data = CodebaseFullFlowRequest(**data)
+
+    if validated_data.url is None:
+        return {"error": "URL is required"}
+
+    code_flow_result = await run_full_code_flow(
+        validated_data.url, validated_data.prompt
+    )
+
+    result = CodebaseFullFlowResponse(
+        final_result=code_flow_result.final_result,
+        modified_files=code_flow_result.modified_files,
+    ).model_dump_json()
+
+    return json.dumps("Codebase full flow completed")
 
 
 @app.post("/mixed_flow")

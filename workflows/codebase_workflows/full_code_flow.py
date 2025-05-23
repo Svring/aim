@@ -11,9 +11,9 @@ class FullCodeFlowResponse(BaseModel):
     modified_files: List[str]
 
 
-async def run_full_code_flow(public_address: str, prompt: str):
+async def run_full_code_flow(url: str, prompt: str):
     """Run the full code flow."""
-    code_result = await run_basic_code_agent(public_address, prompt)
+    code_result = await run_basic_code_agent(url, prompt)
     code = unsafe_perform_io(code_result.unwrap())
     # this return value is of no use
     return FullCodeFlowResponse(

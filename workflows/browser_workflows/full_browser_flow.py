@@ -11,7 +11,7 @@ from typing import List, Any
 class FullBrowserFlowResponse(BaseModel):
     final_result: str
     urls: List[str]
-    screenshot_urls: List[str]
+    screenshot_urls: List[str | None]
     model_actions: List[Any]
 
 
@@ -45,6 +45,6 @@ async def run_full_browser_flow(
     return FullBrowserFlowResponse(
         final_result=final_result,
         urls=urls,
-        screenshot_urls=screenshot_urls,
+        screenshot_urls=[None],
         model_actions=model_actions,
     )

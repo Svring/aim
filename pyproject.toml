@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "aiohttp>=3.12.2",
     "anyio>=4.9.0",
+    "asyncssh>=2.21.0",
     "browser-use>=0.1.48",
     "dotenv>=0.9.9",
     "fastapi>=0.115.12",
@@ -16,6 +18,7 @@ dependencies = [
     "pydantic>=2.10.6",
     "pyobjtojson>=0.3",
     "pytest>=8.3.5",
+    "pytest-asyncio>=1.0.0",
     "returns[compatible-mypy]>=0.25.0",
     "uvicorn>=0.34.2",
 ]
@@ -23,3 +26,8 @@ dependencies = [
 [tool.mypy]
 # plugins = ["returns.contrib.mypy.returns_plugin"]
 strict = "true"
+
+[tool.pytest.ini_options]
+markers = [
+    "asyncio: mark test to be run by pytest-asyncio"
+]

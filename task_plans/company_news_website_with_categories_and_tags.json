@@ -1,0 +1,39 @@
+{
+  "task_id": "144710d9-fe6d-4c0c-a87a-f7ae8cdd384b",
+  "task_name": "Company News Website with Categories and Tags",
+  "user_prompt": "Design a simple website to display company news.",
+  "template": "nextjs",
+  "design_principles": [
+    "Responsive design for all device sizes",
+    "Use shadcn/ui for consistent UI components",
+    "Clean and professional company-appropriate design",
+    "Fast loading and performance optimization",
+    "SEO-friendly structure for better search visibility",
+    "Accessible design following web standards"
+  ],
+  "functionalities": [
+    "Display list of company news articles",
+    "Individual news article pages with full content",
+    "Categories system for organizing news by type",
+    "Tags functionality for flexible content labeling",
+    "Category and tag filtering/browsing pages",
+    "Search functionality to find specific articles",
+    "Responsive navigation with category menu",
+    "Article metadata display (date, author, category, tags)",
+    "Pagination for news listings",
+    "Related articles suggestions",
+    "Social media sharing buttons",
+    "SEO optimization with meta tags and structured data"
+  ],
+  "additional_notes": "The website will use Next.js with shadcn/ui components for a modern, professional appearance. Focus on clean content presentation and easy navigation through categories and tags. Consider implementing a content management system or API integration for easy news updates.",
+  "devbox_info": {
+    "project_public_address": "https://mpiadxtjesgr.sealosbja.site/",
+    "ssh_credentials": {
+      "host": "bja.sealos.run",
+      "port": "44285",
+      "username": "devbox",
+      "password": "daxfAj-1nizti-dazduw"
+    },
+    "template": "nextjs"
+  }
+}

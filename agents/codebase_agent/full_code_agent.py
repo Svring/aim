@@ -51,13 +51,15 @@ async def _execute_tools(
             # Execute the tool with token and URL injection
             if tool_name == "codebase_find_files":
                 params = FindFilesParams(**tool_args)
-                result = _execute_codebase_find_files(params, token, galatea_url)
+                result = await _execute_codebase_find_files(params, token, galatea_url)
             elif tool_name == "codebase_editor_command":
                 params = EditorCommandParams(**tool_args)
-                result = _execute_codebase_editor_command(params, token, galatea_url)
+                result = await _execute_codebase_editor_command(
+                    params, token, galatea_url
+                )
             elif tool_name == "codebase_npm_script":
                 params = NpmScriptParams(**tool_args)
-                result = _execute_codebase_npm_script(params, token, galatea_url)
+                result = await _execute_codebase_npm_script(params, token, galatea_url)
             elif tool_name == "task_completion":
                 params = TaskCompletionParams(**tool_args)
                 result = _execute_task_completion(params, token, galatea_url)
@@ -92,7 +94,9 @@ async def _check_task_completion(
     try:
         # Run linting to check for errors
         lint_params = NpmScriptParams(script="lint")
-        lint_result = _execute_codebase_npm_script(lint_params, token, galatea_url)
+        lint_result = await _execute_codebase_npm_script(
+            lint_params, token, galatea_url
+        )
 
         if lint_result.get("success", False):
             print("✅ Linting passed")
@@ -106,7 +110,7 @@ async def _check_task_completion(
                     suffixes=["tsx", "ts", "jsx", "js"],
                     exclude_dirs=["node_modules", "dist", ".next"],
                 )
-                find_result = _execute_codebase_find_files(
+                find_result = await _execute_codebase_find_files(
                     find_params, token, galatea_url
                 )
 
@@ -147,7 +151,7 @@ async def run_full_code_agent(
     print(f"🎯 Task functionalities: {task_plan.get('functionalities', [])}")
 
     # Initialize components
-    llm = get_sealos_model("gpt-4o-mini")
+    llm = get_sealos_model("claude-sonnet-4-20250514")
     tools = {
         "codebase_find_files": codebase_find_files,
         "codebase_editor_command": codebase_editor_command,

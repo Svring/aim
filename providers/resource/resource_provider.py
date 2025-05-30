@@ -100,6 +100,8 @@ async def update_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
         str: URL in the format {project_public_address}/galatea
     """
     try:
+        print("🔄 Starting Galatea update process...")
+
         # Extract SSH configuration from DevboxInfo
         ssh_config = {
             "host": devbox_info.ssh_credentials.host,
@@ -112,6 +114,7 @@ async def update_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
             "password": devbox_info.ssh_credentials.password,
         }
 
+        print(f"🔌 Connecting to devbox at {ssh_config['host']}:{ssh_config['port']}")
         async with asyncssh.connect(
             host=ssh_config["host"],
             port=ssh_config.get("port", 22),
@@ -122,14 +125,20 @@ async def update_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
             ),
             known_hosts=None,
         ) as conn:
+            print("🧹 Cleaning up existing Galatea processes and files...")
             # Clean ports and remove existing galatea
             await conn.run("cd /home/devbox && fuser -k 3051/tcp 3000/tcp", check=False)
             await conn.run("cd /home/devbox && rm -f galatea galatea.log", check=False)
+            print("✅ Cleanup complete")
 
+        print("🚀 Activating new Galatea version...")
         # Call activate function to fetch newest galatea and launch
-        return await activate_galatea_for_devbox(devbox_info)
+        result = await activate_galatea_for_devbox(devbox_info)
+        print("✅ Galatea update completed successfully")
+        return result
 
     except Exception as e:
+        print(f"❌ Error updating Galatea: {str(e)}")
         raise Exception(f"Failed to update Galatea for devbox: {str(e)}")
 
 

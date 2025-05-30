@@ -82,6 +82,7 @@ async def fetch_with_timeout_and_retry(
     last_error = None
 
     for attempt in range(max_retries):
+        print(f"🔄 Attempt {attempt + 1}/{max_retries} for {method} request to {url}")
         try:
             timeout = aiohttp.ClientTimeout(total=timeout_seconds)
             headers = {
@@ -89,6 +90,7 @@ async def fetch_with_timeout_and_retry(
                 "Authorization": f"Bearer {token}",
             }
 
+            print(f"📤 Sending {method} request with timeout {timeout_seconds}s")
             async with session.request(
                 method=method,
                 url=url,
@@ -96,76 +98,76 @@ async def fetch_with_timeout_and_retry(
                 headers=headers,
                 timeout=timeout,
             ) as response:
+                print(f"📥 Received response with status {response.status}")
                 try:
                     data = await response.json()
                 except aiohttp.ContentTypeError:
                     # If not JSON, try to get plain text
                     text = await response.text()
+                    print(f"⚠️ Non-JSON response received: {text[:100]}...")
                     return {"success": False, "error": f"Non-JSON response: {text}"}
 
                 if not response.ok:
+                    error_msg = data.get("message", "Request failed")
+                    print(f"❌ Request failed: {error_msg}")
                     return {
                         "success": False,
-                        "error": data.get("message", "Request failed"),
+                        "error": error_msg,
                     }
 
+                print("✅ Request successful")
                 return data
 
         except asyncio.TimeoutError as e:
             last_error = e
+            print(f"⏰ Timeout error on attempt {attempt + 1}: {str(e)}")
             if attempt < max_retries - 1:
+                print("🔄 Retrying...")
                 continue  # Retry on timeout
             else:
                 break
         except Exception as e:
             # Don't retry on non-timeout errors
+            print(f"❌ Non-timeout error: {str(e)}")
             return {"success": False, "error": f"Request failed: {str(e)}"}
 
+    print(f"❌ All {max_retries} attempts failed")
     return {
         "success": False,
         "error": f"Request timed out after {max_retries} attempts: {str(last_error)}",
     }
 
 
-def _execute_codebase_find_files(params: FindFilesParams, token: str, url: str) -> dict:
-    """Internal function to execute find files with token."""
+async def _execute_codebase_find_files(
+    params: FindFilesParams, token: str, url: str
+) -> dict:
+    async with aiohttp.ClientSession() as session:
+        request_data = {
+            "dir": params.dir,
+            "suffixes": params.suffixes,
+        }
+        if params.exclude_dirs:
+            request_data["exclude_dirs"] = params.exclude_dirs
 
-    async def _find_files():
-        async with aiohttp.ClientSession() as session:
-            request_data = {
-                "dir": params.dir,
-                "suffixes": params.suffixes,
+        result = await fetch_with_timeout_and_retry(
+            session=session,
+            url=f"{url}/api/project/find-files",
+            token=token,
+            method="POST",
+            json_data=request_data,
+        )
+
+        if result.get("success", True) and "files" in result:
+            return {
+                "success": True,
+                "files": result.get("files", []),
+                "message": f"Found {len(result.get('files', []))} files matching criteria",
             }
-            if params.exclude_dirs:
-                request_data["exclude_dirs"] = params.exclude_dirs
 
-            result = await fetch_with_timeout_and_retry(
-                session=session,
-                url=f"{url}/api/project/find-files",
-                token=token,
-                method="POST",
-                json_data=request_data,
-            )
-
-            if result.get("success", True) and "files" in result:
-                return {
-                    "success": True,
-                    "files": result.get("files", []),
-                    "message": f"Found {len(result.get('files', []))} files matching criteria",
-                }
-
-            return result
-
-    # Run the async function
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_find_files())
-    finally:
-        loop.close()
+        return result
 
 
-def _execute_codebase_editor_command(
+async def _execute_codebase_editor_command(
     params: EditorCommandParams, token: str, url: str
 ) -> dict:
     """Internal function to execute editor command with token."""
@@ -194,71 +196,52 @@ def _execute_codebase_editor_command(
                 "error": f"'paths' should not be provided for command '{params.command}'.",
             }
 
-    async def _editor_command():
-        async with aiohttp.ClientSession() as session:
-            body = {"command": params.command}
+    async with aiohttp.ClientSession() as session:
+        body = {"command": params.command}
 
-            if params.view_range:
-                body["view_range"] = params.view_range
+        if params.view_range:
+            body["view_range"] = params.view_range
 
-            if params.command == "view":
-                if params.paths and len(params.paths) > 0:
-                    body["paths"] = params.paths
-                else:
-                    body["path"] = params.path
+        if params.command == "view":
+            if params.paths and len(params.paths) > 0:
+                body["paths"] = params.paths
             else:
                 body["path"] = params.path
+        else:
+            body["path"] = params.path
 
-            # Add optional parameters
-            if params.file_text is not None:
-                body["file_text"] = params.file_text
-            if params.insert_line is not None:
-                body["insert_line"] = params.insert_line
-            if params.new_str is not None:
-                body["new_str"] = params.new_str
-            if params.old_str is not None:
-                body["old_str"] = params.old_str
+        # Add optional parameters
+        if params.file_text is not None:
+            body["file_text"] = params.file_text
+        if params.insert_line is not None:
+            body["insert_line"] = params.insert_line
+        if params.new_str is not None:
+            body["new_str"] = params.new_str
+        if params.old_str is not None:
+            body["old_str"] = params.old_str
 
-            result = await fetch_with_timeout_and_retry(
-                session=session,
-                url=f"{url}/api/editor/command",
-                token=token,
-                method="POST",
-                json_data=body,
-            )
+        result = await fetch_with_timeout_and_retry(
+            session=session,
+            url=f"{url}/api/editor/command",
+            token=token,
+            method="POST",
+            json_data=body,
+        )
 
-            return result
-
-    # Run the async function
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_editor_command())
-    finally:
-        loop.close()
+        return result
 
 
-def _execute_codebase_npm_script(params: NpmScriptParams, token: str, url: str) -> dict:
-    """Internal function to execute npm script with token."""
-
-    async def _npm_script():
-        async with aiohttp.ClientSession() as session:
-            result = await fetch_with_timeout_and_retry(
-                session=session,
-                url=f"{url}/api/project/{params.script}",
-                token=token,
-                method="POST",
-            )
-
-            return result
-
-    # Run the async function
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(_npm_script())
-    finally:
-        loop.close()
+async def _execute_codebase_npm_script(
+    params: NpmScriptParams, token: str, url: str
+) -> dict:
+    async with aiohttp.ClientSession() as session:
+        result = await fetch_with_timeout_and_retry(
+            session=session,
+            url=f"{url}/api/project/{params.script}",
+            token=token,
+            method="POST",
+        )
+        return result
 
 
 def _execute_task_completion(

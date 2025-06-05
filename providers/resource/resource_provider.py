@@ -13,16 +13,19 @@ from .resource_models import DevboxInfo, SSHCredentials
 load_dotenv()
 
 
-async def activate_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
+async def activate_galatea_for_devbox(
+    devbox_info: DevboxInfo, mcp_enabled: bool = False
+) -> str:
     """
     Activate Galatea for a devbox. Cleans ports and launches Galatea if it exists,
     otherwise uploads and launches it.
 
     Args:
         devbox_info: DevboxInfo containing SSH credentials and connection details
+        mcp_enabled: If True, launch Galatea with '--mcp_enabled' flag
 
     Returns:
-        str: URL in the format {project_public_address}/galatea
+        str: URL in the format {project_public_address}galatea
     """
     try:
         print(
@@ -75,12 +78,17 @@ async def activate_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
             # Make executable and launch
             await conn.run("cd /home/devbox && chmod a+x galatea")
             # Launch Galatea in background with proper detachment
+            launch_cmd = (
+                "cd /home/devbox && (./galatea --mcp-enabled --use-sudo > galatea.log 2>&1 &) && sleep 1"
+                if mcp_enabled
+                else "cd /home/devbox && (./galatea > galatea.log 2>&1 &) && sleep 1"
+            )
             await conn.run(
-                "cd /home/devbox && (./galatea > galatea.log 2>&1 &) && sleep 1",
+                launch_cmd,
                 check=False,
             )
 
-        galatea_url = f"{devbox_info.project_public_address}/galatea"
+        galatea_url = f"{devbox_info.project_public_address}galatea"
         print(f"Galatea activation complete. URL: {galatea_url}")
         return galatea_url
 
@@ -89,15 +97,18 @@ async def activate_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
         raise Exception(f"Failed to activate Galatea for devbox: {str(e)}")
 
 
-async def update_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
+async def update_galatea_for_devbox(
+    devbox_info: DevboxInfo, mcp_enabled: bool = False
+) -> str:
     """
     Update Galatea for a devbox by removing current version and activating with newest release.
 
     Args:
         devbox_info: DevboxInfo containing SSH credentials and connection details
+        mcp_enabled: If True, launch Galatea with '--mcp_enabled' flag
 
     Returns:
-        str: URL in the format {project_public_address}/galatea
+        str: URL in the format {project_public_address}galatea
     """
     try:
         print("🔄 Starting Galatea update process...")
@@ -133,7 +144,7 @@ async def update_galatea_for_devbox(devbox_info: DevboxInfo) -> str:
 
         print("🚀 Activating new Galatea version...")
         # Call activate function to fetch newest galatea and launch
-        result = await activate_galatea_for_devbox(devbox_info)
+        result = await activate_galatea_for_devbox(devbox_info, mcp_enabled=mcp_enabled)
         print("✅ Galatea update completed successfully")
         return result
 
@@ -211,6 +222,7 @@ def get_devbox_for_task(task_path: str, token: str) -> DevboxInfo:
             password=None,
         ),
         template="nextjs",
+        token="123",
     )
 
 
@@ -269,3 +281,56 @@ async def add_devbox_info_to_task_plan(
 
     print(f"Devbox info, task ID, and status added to task plan: {task_plan_path}")
     return task_plan_data
+
+
+async def cleanup_galatea_files_on_devbox(devbox_info: DevboxInfo) -> bool:
+    """
+    Cleans up Galatea-related files and folders on the remote devbox.
+    Deletes 'galatea_files', 'project' folders and 'galatea', 'galatea_log' files from /home/{user}.
+
+    Args:
+        devbox_info: DevboxInfo containing SSH credentials and connection details
+
+    Returns:
+        bool: True if cleanup succeeds
+    """
+    try:
+        ssh_user = devbox_info.ssh_credentials.username
+        if not ssh_user:
+            raise Exception("SSH username is required for cleanup.")
+        ssh_config = {
+            "host": devbox_info.ssh_credentials.host,
+            "port": (
+                int(devbox_info.ssh_credentials.port)
+                if devbox_info.ssh_credentials.port
+                else 22
+            ),
+            "username": ssh_user,
+            "password": devbox_info.ssh_credentials.password,
+        }
+        cleanup_cmd = (
+            f"cd /home/{ssh_user} && "
+            "sudo rm -rf galatea_files project galatea galatea.log"
+        )
+        print(
+            f"Connecting to devbox for cleanup at {ssh_config['host']}:{ssh_config['port']}"
+        )
+        async with asyncssh.connect(
+            host=ssh_config["host"],
+            port=ssh_config.get("port", 22),
+            username=ssh_config["username"],
+            password=ssh_config.get("password"),
+            client_keys=(
+                [ssh_config["private_key"]] if ssh_config.get("private_key") else None
+            ),
+            known_hosts=None,
+        ) as conn:
+            print(f"Running cleanup command: {cleanup_cmd}")
+            result = await conn.run(cleanup_cmd, check=False)
+            if result.exit_status != 0:
+                raise Exception(f"Cleanup command failed: {result.stderr}")
+        print("Cleanup completed successfully.")
+        return True
+    except Exception as e:
+        print(f"Error during cleanup: {str(e)}")
+        raise Exception(f"Failed to cleanup Galatea files on devbox: {str(e)}")

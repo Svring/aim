@@ -1,0 +1,88 @@
+{
+  "task_id": "144710d9-fe6d-4c0c-a87a-f7ae8cdd384b",
+  "task_name": "Company News Website with Categories and Tags",
+  "user_prompt": "Design a simple website to display company news.",
+  "template": "nextjs",
+  "design_principles": [
+    "Responsive design for all device sizes",
+    "Use shadcn/ui for consistent UI components",
+    "Clean and professional company-appropriate design",
+    "Fast loading and performance optimization",
+    "SEO-friendly structure for better search visibility",
+    "Accessible design following web standards"
+  ],
+  "functionalities": [
+    {
+      "description": "Display list of company news articles",
+      "workflow": "Users access the homepage to view a paginated list of news article summaries, each showing title, date, and excerpt. Clicking an article leads to its full content.",
+      "completed": false
+    },
+    {
+      "description": "Individual news article pages with full content",
+      "workflow": "Users click an article from the list to view a dedicated page with the full article text, metadata, and related articles.",
+      "completed": false
+    },
+    {
+      "description": "Categories system for organizing news by type",
+      "workflow": "Users can filter articles by selecting a category from a dropdown or sidebar menu, displaying only articles in that category.",
+      "completed": false
+    },
+    {
+      "description": "Tags functionality for flexible content labeling",
+      "workflow": "Users can click on tags displayed on articles or in a tag cloud to view all articles with that tag.",
+      "completed": false
+    },
+    {
+      "description": "Category and tag filtering/browsing pages",
+      "workflow": "Dedicated pages for each category and tag show filtered article lists, accessible via navigation menus or search.",
+      "completed": false
+    },
+    {
+      "description": "Search functionality to find specific articles",
+      "workflow": "Users enter keywords in a search bar, and results display matching articles with highlighted keywords.",
+      "completed": false
+    },
+    {
+      "description": "Responsive navigation with category menu",
+      "workflow": "A mobile-friendly navbar includes a collapsible category menu for easy access across devices.",
+      "completed": false
+    },
+    {
+      "description": "Article metadata display (date, author, category, tags)",
+      "workflow": "Each article page shows metadata below the title, styled consistently with shadcn/ui components.",
+      "completed": false
+    },
+    {
+      "description": "Pagination for news listings",
+      "workflow": "Users navigate through article lists using numbered pagination controls at the bottom of the page.",
+      "completed": false
+    },
+    {
+      "description": "Related articles suggestions",
+      "workflow": "At the bottom of each article, a section displays related articles based on shared categories or tags.",
+      "completed": false
+    },
+    {
+      "description": "Social media sharing buttons",
+      "workflow": "Each article includes buttons to share on platforms like Twitter and LinkedIn, opening pre-filled share dialogs.",
+      "completed": false
+    },
+    {
+      "description": "SEO optimization with meta tags and structured data",
+      "workflow": "Articles include meta tags and JSON-LD structured data, automatically generated for search engine visibility.",
+      "completed": false
+    }
+  ],
+  "additional_notes": "The website will use Next.js with shadcn/ui components for a modern, professional appearance. Focus on clean content presentation and easy navigation through categories and tags. Consider implementing a content management system or API integration for easy news updates.",
+  "devbox_info": {
+    "user_id": "aroma",
+    "project_public_address": "https://gdtakheltbne.sealosbja.site",
+    "ssh_credentials": {
+      "host": "bja.sealos.run",
+      "port": "44285",
+      "username": "devbox",
+      "password": "daxfAj-1nizti-dazduw"
+    },
+    "template": "nextjs"
+  }
+}

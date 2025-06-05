@@ -27,7 +27,8 @@
   ],
   "additional_notes": "The website will use Next.js with shadcn/ui components for a modern, professional appearance. Focus on clean content presentation and easy navigation through categories and tags. Consider implementing a content management system or API integration for easy news updates.",
   "devbox_info": {
-    "project_public_address": "https://mpiadxtjesgr.sealosbja.site/",
+    "user_id": "aroma",
+    "project_public_address": "https://gdtakheltbne.sealosbja.site",
     "ssh_credentials": {
       "host": "bja.sealos.run",
       "port": "44285",

@@ -16,6 +16,7 @@ dependencies = [
     "langchain-openai>=0.3.11",
     "langgraph>=0.4.5",
     "mcp>=1.9.1",
+    "mem0ai>=0.1.93",
     "mypy>=1.15.0",
     "prettyprinter>=0.18.0",
     "pydantic>=2.10.6",
@@ -34,3 +35,11 @@ strict = "true"
 markers = [
     "asyncio: mark test to be run by pytest-asyncio"
 ]
+
+[dependency-groups]
+dev = [
+    "ty>=0.0.1a8",
+]
+
+[tool.ty.rules]
+unresolved-import = "ignore"

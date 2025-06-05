@@ -22,3 +22,11 @@ class TaskPool(BaseModel):
     """
 
     pool: Dict[str, List[DevboxInfo]] = {}
+
+
+class ProjectState(BaseModel):
+    """
+    A state to track all projects, mapping a project address to a list of DevboxInfo (or task IDs).
+    """
+
+    projects: Dict[str, List[DevboxInfo]] = {}

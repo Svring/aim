@@ -2,8 +2,10 @@ import asyncio
 import aiohttp
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
-from typing import List, Optional, Union, Literal
-import json
+from typing import List, Optional, Union, Literal, Annotated
+from langgraph.prebuilt import InjectedState
+from langgraph.prebuilt.chat_agent_executor import AgentState
+from langchain_core.runnables import RunnableConfig
 
 
 class FindFilesParams(BaseModel):
@@ -56,6 +58,12 @@ class NpmScriptParams(BaseModel):
     )
 
 
+class UpdateProjectStructureParams(BaseModel):
+    project_structure: dict = Field(
+        description="The project structure to update. The project structure is a dictionary with the following structure: {project_name: [file_name, file_name, ...], project_name: [file_name, file_name, ...], ...}"
+    )
+
+
 class TaskCompletionParams(BaseModel):
     summary: str = Field(
         description="A brief summary of what was implemented and completed."
@@ -79,79 +87,66 @@ async def fetch_with_timeout_and_retry(
     max_retries: int = 3,
 ) -> dict:
     """Helper function for HTTP requests with timeout and retry logic."""
-    last_error = None
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    timeout = aiohttp.ClientTimeout(total=timeout_seconds)
 
     for attempt in range(max_retries):
         print(f"🔄 Attempt {attempt + 1}/{max_retries} for {method} request to {url}")
+        print(f"📤 Sending {method} request with timeout {timeout_seconds}s")
+
+        response = await session.request(
+            method=method,
+            url=url,
+            json=json_data,
+            headers=headers,
+            timeout=timeout,
+        )
+
+        print(f"📥 Received response with status {response.status}")
+
+        if not response.ok:
+            error_msg = (await response.json()).get("message", "Request failed")
+            print(f"❌ Request failed: {error_msg}")
+            return {"success": False, "error": error_msg}
+
         try:
-            timeout = aiohttp.ClientTimeout(total=timeout_seconds)
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {token}",
-            }
+            data = await response.json()
+            print("✅ Request successful")
+            return data
+        except aiohttp.ContentTypeError:
+            text = await response.text()
+            print(f"⚠️ Non-JSON response received: {text[:100]}...")
+            return {"success": False, "error": f"Non-JSON response: {text}"}
 
-            print(f"📤 Sending {method} request with timeout {timeout_seconds}s")
-            async with session.request(
-                method=method,
-                url=url,
-                json=json_data,
-                headers=headers,
-                timeout=timeout,
-            ) as response:
-                print(f"📥 Received response with status {response.status}")
-                try:
-                    data = await response.json()
-                except aiohttp.ContentTypeError:
-                    # If not JSON, try to get plain text
-                    text = await response.text()
-                    print(f"⚠️ Non-JSON response received: {text[:100]}...")
-                    return {"success": False, "error": f"Non-JSON response: {text}"}
-
-                if not response.ok:
-                    error_msg = data.get("message", "Request failed")
-                    print(f"❌ Request failed: {error_msg}")
-                    return {
-                        "success": False,
-                        "error": error_msg,
-                    }
-
-                print("✅ Request successful")
-                return data
-
-        except asyncio.TimeoutError as e:
-            last_error = e
-            print(f"⏰ Timeout error on attempt {attempt + 1}: {str(e)}")
-            if attempt < max_retries - 1:
-                print("🔄 Retrying...")
-                continue  # Retry on timeout
-            else:
-                break
-        except Exception as e:
-            # Don't retry on non-timeout errors
-            print(f"❌ Non-timeout error: {str(e)}")
-            return {"success": False, "error": f"Request failed: {str(e)}"}
-
-    print(f"❌ All {max_retries} attempts failed")
-    return {
-        "success": False,
-        "error": f"Request timed out after {max_retries} attempts: {str(last_error)}",
-    }
+    print(f"❌ All {max_retries} attempts failed for {method} request to {url}")
+    return {"success": False, "error": f"Request failed after {max_retries} attempts"}
 
 
-async def _execute_codebase_find_files(
-    params: FindFilesParams, token: str, url: str
+@tool("codebase_find_files", args_schema=FindFilesParams)
+async def codebase_find_files(
+    dir: str,
+    suffixes: List[str],
+    exclude_dirs: Optional[List[str]] = None,
+    state: Annotated[AgentState, InjectedState] = None,
+    config: RunnableConfig = None,
 ) -> dict:
+    """Find files in the project matching specific suffixes and excluding directories."""
+    token = config["configurable"]["token"]
+    url = config["configurable"]["project_address"]
     async with aiohttp.ClientSession() as session:
         request_data = {
-            "dir": params.dir,
-            "suffixes": params.suffixes,
+            "dir": dir,
+            "suffixes": suffixes,
         }
-        if params.exclude_dirs:
-            request_data["exclude_dirs"] = params.exclude_dirs
+        if exclude_dirs:
+            request_data["exclude_dirs"] = exclude_dirs
 
         result = await fetch_with_timeout_and_retry(
             session=session,
-            url=f"{url}/api/project/find-files",
+            url=f"{url}/galatea/api/project/find-files",
             token=token,
             method="POST",
             json_data=request_data,
@@ -167,62 +162,74 @@ async def _execute_codebase_find_files(
         return result
 
 
-async def _execute_codebase_editor_command(
-    params: EditorCommandParams, token: str, url: str
+@tool("codebase_editor_command", args_schema=EditorCommandParams)
+async def codebase_editor_command(
+    command: Literal["view", "create", "str_replace", "insert", "undo_edit"],
+    path: Optional[str] = None,
+    paths: Optional[List[str]] = None,
+    file_text: Optional[str] = None,
+    insert_line: Optional[int] = None,
+    new_str: Optional[str] = None,
+    old_str: Optional[str] = None,
+    view_range: Optional[List[int]] = None,
+    state: Annotated[AgentState, InjectedState] = None,
+    config: RunnableConfig = None,
 ) -> dict:
-    """Internal function to execute editor command with token."""
+    """Send an editor command (view, create, str_replace, insert, undo_edit) to the backend for file operations."""
+    token = config["configurable"]["token"]
+    url = config["configurable"]["project_address"]
     # Validation logic similar to TypeScript superRefine
-    if params.command == "view":
-        if not params.path and (not params.paths or len(params.paths) == 0):
+    if command == "view":
+        if not path and (not paths or len(paths) == 0):
             return {
                 "success": False,
                 "error": "For 'view' command, either 'path' (for single file) or a non-empty 'paths' array (for multiple files) must be provided.",
             }
-        if params.path and params.paths and len(params.paths) > 0:
+        if path and paths and len(paths) > 0:
             return {
                 "success": False,
                 "error": "For 'view' command, provide either 'path' or 'paths', not both.",
             }
     else:
         # For non-"view" commands
-        if not params.path:
+        if not path:
             return {
                 "success": False,
-                "error": f"'path' is required for command '{params.command}'.",
+                "error": f"'path' is required for command '{command}'.",
             }
-        if params.paths and len(params.paths) > 0:
+        if paths and len(paths) > 0:
             return {
                 "success": False,
-                "error": f"'paths' should not be provided for command '{params.command}'.",
+                "error": f"'paths' should not be provided for command '{command}'.",
             }
 
     async with aiohttp.ClientSession() as session:
-        body = {"command": params.command}
+        body = {"command": command}
 
-        if params.view_range:
-            body["view_range"] = params.view_range
+        if view_range:
+            body["view_range"] = view_range
 
-        if params.command == "view":
-            if params.paths and len(params.paths) > 0:
-                body["paths"] = params.paths
+        if command == "view":
+            if paths and len(paths) > 0:
+                body["paths"] = paths
             else:
-                body["path"] = params.path
+                body["path"] = path
         else:
-            body["path"] = params.path
+            body["path"] = path
 
         # Add optional parameters
-        if params.file_text is not None:
-            body["file_text"] = params.file_text
-        if params.insert_line is not None:
-            body["insert_line"] = params.insert_line
-        if params.new_str is not None:
-            body["new_str"] = params.new_str
-        if params.old_str is not None:
-            body["old_str"] = params.old_str
+        if file_text is not None:
+            body["file_text"] = file_text
+        if insert_line is not None:
+            body["insert_line"] = insert_line
+        if new_str is not None:
+            body["new_str"] = new_str
+        if old_str is not None:
+            body["old_str"] = old_str
 
         result = await fetch_with_timeout_and_retry(
             session=session,
-            url=f"{url}/api/editor/command",
+            url=f"{url}/galatea/api/editor/command",
             token=token,
             method="POST",
             json_data=body,
@@ -231,58 +238,53 @@ async def _execute_codebase_editor_command(
         return result
 
 
-async def _execute_codebase_npm_script(
-    params: NpmScriptParams, token: str, url: str
+@tool("codebase_npm_script", args_schema=NpmScriptParams)
+async def codebase_npm_script(
+    script: Literal["lint", "format"],
+    state: Annotated[AgentState, InjectedState] = None,
+    config: RunnableConfig = None,
 ) -> dict:
+    """Run npm scripts (lint or format) in the project root and return their output."""
+    token = config["configurable"]["token"]
+    url = config["configurable"]["project_address"]
     async with aiohttp.ClientSession() as session:
         result = await fetch_with_timeout_and_retry(
             session=session,
-            url=f"{url}/api/project/{params.script}",
+            url=f"{url}/galatea/api/project/{script}",
             token=token,
             method="POST",
         )
         return result
 
 
-def _execute_task_completion(
-    params: TaskCompletionParams, token: str, url: str
+@tool("codebase_update_project_structure", args_schema=UpdateProjectStructureParams)
+async def codebase_update_project_structure(
+    project_structure: dict,
+    state: Annotated[AgentState, InjectedState] = None,
+    config: RunnableConfig = None,
 ) -> dict:
-    """Internal function to handle task completion indication."""
-    # This is a local tool that doesn't make network requests
-    # It simply returns the completion information
+    """Update the project structure with the given project structure."""
     return {
         "success": True,
-        "task_completed": True,
-        "summary": params.summary,
-        "functionalities_completed": params.functionalities_completed,
-        "files_modified": params.files_modified or [],
-        "message": "Task completion indicated by agent",
+        "project_structure": project_structure,
+        "message": "Project structure updated",
     }
 
 
-@tool
-def codebase_find_files(params: FindFilesParams) -> dict:
-    """Find files in the project matching specific suffixes and excluding directories."""
-    # This will be called by the agent without token, token will be injected during execution
-    return {"tool_name": "codebase_find_files", "params": params.dict()}
-
-
-@tool
-def codebase_editor_command(params: EditorCommandParams) -> dict:
-    """Send an editor command (view, create, str_replace, insert, undo_edit) to the backend for file operations."""
-    # This will be called by the agent without token, token will be injected during execution
-    return {"tool_name": "codebase_editor_command", "params": params.dict()}
-
-
-@tool
-def codebase_npm_script(params: NpmScriptParams) -> dict:
-    """Run npm scripts (lint or format) in the project root and return their output."""
-    # This will be called by the agent without token, token will be injected during execution
-    return {"tool_name": "codebase_npm_script", "params": params.dict()}
-
-
-@tool
-def task_completion(params: TaskCompletionParams) -> dict:
+@tool("task_completion", args_schema=TaskCompletionParams)
+def task_completion(
+    summary: str,
+    functionalities_completed: List[str],
+    files_modified: Optional[List[str]] = None,
+    state: Annotated[AgentState, InjectedState] = None,
+    config: RunnableConfig = None,
+) -> dict:
     """Indicate that the task implementation is complete. Use this tool when all functionalities have been implemented and tested."""
-    # This will be called by the agent without token, token will be injected during execution
-    return {"tool_name": "task_completion", "params": params.dict()}
+    return {
+        "success": True,
+        "task_completed": True,
+        "summary": summary,
+        "functionalities_completed": functionalities_completed,
+        "files_modified": files_modified or [],
+        "message": "Task completion indicated by agent",
+    }

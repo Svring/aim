@@ -2,7 +2,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 import os
 import re
-from typing import Literal
+from typing import Literal, List
 
 
 # Define a Pydantic model for structured follow-up questions
@@ -30,6 +30,34 @@ def ask_follow_up_question(params: FollowUpQuestion) -> str:
 
 
 # Define a Pydantic model for the task plan
+class SSHCredentials(BaseModel):
+    host: str = Field(description="SSH host address")
+    port: str = Field(description="SSH port number")
+    username: str = Field(description="SSH username")
+    password: str = Field(description="SSH password")
+
+
+class DevboxInfo(BaseModel):
+    user_id: str = Field(description="User identifier for the devbox")
+    project_public_address: str = Field(description="Public URL of the project")
+    ssh_credentials: SSHCredentials = Field(
+        description="SSH credentials for accessing the devbox"
+    )
+    template: Literal["nextjs", "uv"] = Field(
+        description="Template used for the devbox"
+    )
+
+
+class Functionality(BaseModel):
+    description: str = Field(description="Description of the functionality")
+    workflow: str = Field(
+        description="Details on how to use the functionality in the UI and expected result"
+    )
+    completed: bool = Field(
+        description="Indicates whether the functionality is completed", default=False
+    )
+
+
 class TaskPlan(BaseModel):
     task_id: str = Field(description="Unique identifier for the task")
     task_name: str = Field(description="The name of the task")
@@ -37,13 +65,14 @@ class TaskPlan(BaseModel):
     template: Literal["nextjs", "uv"] = Field(
         description="Template to be used: 'nextjs' or 'uv'"
     )
-    design_principles: list[str] = Field(description="Design principles to follow")
-    functionalities: list[str] = Field(
+    design_principles: List[str] = Field(description="Design principles to follow")
+    functionalities: List[Functionality] = Field(
         description="Expected functionalities of the task"
     )
     additional_notes: str = Field(
         description="Any additional notes or considerations", default=""
     )
+    devbox_info: DevboxInfo = Field(description="Development environment information")
 
 
 @tool

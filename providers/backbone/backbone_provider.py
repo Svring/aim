@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
 from typing import Dict, Any
 
 load_dotenv()

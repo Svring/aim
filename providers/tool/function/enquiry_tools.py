@@ -116,3 +116,28 @@ def generate_task_plan(plan: TaskPlan) -> dict:
         }
     except Exception as e:
         return {"status": "error", "task_name": plan.task_name, "error": str(e)}
+
+
+class CompleteFunctionalityParams(BaseModel):
+    plan: TaskPlan = Field(description="The task plan to update")
+    description: str = Field(
+        description="The description of the functionality to mark as completed"
+    )
+
+
+@tool
+def complete_functionality(params: CompleteFunctionalityParams) -> TaskPlan:
+    """
+    Mark a functionality as completed in the given TaskPlan by matching its description.
+    Returns the updated TaskPlan.
+    """
+    updated = False
+    for func in params.plan.functionalities:
+        if func.description == params.description:
+            func.completed = True
+            updated = True
+    if not updated:
+        raise ValueError(
+            f"No functionality found with description: {params.description}"
+        )
+    return params.plan

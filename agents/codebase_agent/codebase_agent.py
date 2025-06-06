@@ -15,6 +15,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.runnables import RunnableConfig
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from providers.backbone.backbone_provider import get_sealos_model
 from providers.tool.function.codebase_tools import (
@@ -23,6 +24,11 @@ from providers.tool.function.codebase_tools import (
     codebase_npm_script,
     task_completion,
 )
+from providers.tool.function.enquiry_tools import TaskPlan
+from providers.tool.mcp.codebase_mcp import (
+    get_codebase_editor_tools,
+    get_codebase_project_tools,
+)
 
 
 class CodebaseState(AgentState):
@@ -30,9 +36,9 @@ class CodebaseState(AgentState):
 
 
 def make_config(
-    thread_id: str, user_id: str, token: str, project_address: str, task_plan: str
+    thread_id: str, user_id: str, token: str, project_address: str, task_plan: TaskPlan
 ) -> RunnableConfig:
-    """Return a config dict with the given parameters, including stringified task_plan."""
+    """Return a config dict with the given parameters, including structured task_plan."""
     return {
         "configurable": {
             "thread_id": thread_id,
@@ -51,14 +57,33 @@ def make_codebase_state(project_structure: dict[str, Any]) -> CodebaseState:
 
 def build_codebase_agent_prompt(state: CodebaseState, config: RunnableConfig):
     project_structure_str = json.dumps(state["project_structure"], indent=2)
+    task_plan = config["configurable"].get("task_plan")
+    # Prepare separate fields
+    design_principles = getattr(task_plan, "design_principles", [])
+    functionalities = getattr(task_plan, "functionalities", [])
+    additional_notes = getattr(task_plan, "additional_notes", "")
+
+    design_principles_str = "\n".join(f"- {p}" for p in design_principles)
+    functionalities_str = "\n\n".join(
+        f"Description: {f.description}\nWorkflow: {f.workflow}\nCompleted: {f.completed}"
+        for f in functionalities
+    )
+
     return [
         SystemMessage(
-            content="""You are a helpful codebase agent AI. Use the provided context to personalize your responses and remember user preferences and past interactions. 
-Provide codebase recommendations, and answer questions about codebase. Before any operation, you should first check if the project structure is accurate with the codebase_find_files tool."""
+            content="""You are a specialized code assistant AI whose primary task is to implement the specified Functionalities based on the provided Design Principles and Additional Notes. 
+
+            Your responsibilities include:
+            - Analyzing the project structure and understanding the existing codebase
+            - Implementing each functionality according to the design principles and requirements
+            - Following best practices and maintaining code quality
+            - Ensuring all implementations align with the additional notes and constraints
+
+            Before any operation, you should first check if the project structure is accurate with the codebase_find_files tool. Use the provided context to understand the project requirements and implement the functionalities systematically."""
         ),
-        HumanMessage(
-            content=f"Task plan (JSON):\n{config['configurable'].get('task_plan', '')}"
-        ),
+        HumanMessage(content=f"Design Principles:\n{design_principles_str}"),
+        HumanMessage(content=f"Functionalities:\n{functionalities_str}"),
+        HumanMessage(content=f"Additional Notes:\n{additional_notes}"),
         HumanMessage(
             content=f"Current Project structure (JSON):\n{project_structure_str}"
         ),
@@ -132,6 +157,20 @@ async def run_codebase_agent(
     Returns (agent, config, state)
     """
 
+    project_address = config["configurable"].get("project_address")
+
+    codebase_client = MultiServerMCPClient(
+        {
+            "codebase_editor": {
+                "url": project_address + "galatea/api/editor/mcp",
+                "transport": "streamable_http",
+            }
+        }
+    )
+
+    codebase_editor_tools = await codebase_client.get_tools()
+    # codebase_project_tools = await get_codebase_project_tools(project_address)
+
     agent = create_react_agent(
         model=get_sealos_model("claude-3-5-sonnet-20240620"),
         tools=[
@@ -139,6 +178,8 @@ async def run_codebase_agent(
             codebase_editor_command,
             codebase_npm_script,
             task_completion,
+            # *codebase_editor_tools,
+            # *codebase_project_tools,
         ],
         state_schema=CodebaseState,
         checkpointer=InMemorySaver(),
@@ -152,7 +193,7 @@ async def run_codebase_agent(
         {
             "messages": [
                 HumanMessage(
-                    content="hello, the current project structure is not accurate so you need to read some files by yourself. You can use the codebase_find_files tool to read some files."
+                    content="hello, the current project structure is not accurate so you need to read some files by yourself. After you've understand the current project structure, report back to me with the project structure."
                 )
             ],
             "project_structure": state["project_structure"],
@@ -165,17 +206,47 @@ async def run_codebase_agent(
 
 def extract_task_plan_info(json_path: str):
     """
-    Extract user_id, project_address, token, and stringified task_plan from the task plan JSON file.
-    Returns (user_id, project_address, token, task_plan_str)
+    Extract user_id, project_address, token, and structured task_plan from the task plan JSON file.
+    Returns (user_id, project_address, token, task_plan_model)
     """
     with open(json_path, "r") as f:
         data = json.load(f)
-    user_id = data.get("devbox_info", {}).get("user_id", "aroma")
-    project_address = data.get("devbox_info", {}).get("project_public_address", "")
-    token = data.get("devbox_info", {}).get("ssh_credentials", {}).get("password", "")
-    task_plan = data.get("functionalities", ["Task 1", "Task 2"])
-    task_plan_str = json.dumps(task_plan, indent=2)
-    return user_id, project_address, token, task_plan_str
+
+    # Parse task plan using the TaskPlan Pydantic model
+    try:
+        task_plan = TaskPlan.model_validate(data)
+    except Exception as e:
+        # Fallback: create a minimal TaskPlan if validation fails
+        print(f"Warning: Failed to parse task plan with TaskPlan model: {e}")
+        task_plan = TaskPlan(
+            task_id=data.get("task_id", ""),
+            task_name=data.get("task_name", "Unknown Task"),
+            user_prompt=data.get("user_prompt", ""),
+            template=data.get("template", "nextjs"),
+            design_principles=data.get("design_principles", []),
+            functionalities=[],
+            additional_notes=data.get("additional_notes", ""),
+            devbox_info=data.get(
+                "devbox_info",
+                {
+                    "user_id": "aroma",
+                    "project_public_address": "",
+                    "ssh_credentials": {
+                        "host": "",
+                        "port": "",
+                        "username": "",
+                        "password": "",
+                    },
+                    "template": data.get("template", "nextjs"),
+                },
+            ),
+        )
+
+    user_id = task_plan.devbox_info.user_id
+    project_address = task_plan.devbox_info.project_public_address
+    token = task_plan.devbox_info.ssh_credentials.password
+
+    return user_id, project_address, token, task_plan
 
 
 def test_run_codebase_agent_dummy():
@@ -185,13 +256,13 @@ def test_run_codebase_agent_dummy():
     # Read task plan info from JSON file
     json_path = os.path.join(
         os.path.dirname(__file__),
-        "../../task_plans/company_news_website_with_categories_and_tags.json",
+        "../../task_plans/dummy_plan.json",
     )
     json_path = os.path.abspath(json_path)
-    user_id, project_address, token, task_plan_str = extract_task_plan_info(json_path)
+    user_id, project_address, token, task_plan = extract_task_plan_info(json_path)
     project_structure = {"project": []}
 
-    config = make_config(thread_id, user_id, token, project_address, task_plan_str)
+    config = make_config(thread_id, user_id, token, project_address, task_plan)
     state = make_codebase_state(project_structure)
 
     try:

@@ -318,9 +318,7 @@ async def test_stock_price_comparison():
         print(
             f"✅ Stock price comparison completed with {len(history.history) if history else 0} steps"  # noqa: E501
         )
-        print(
-            "📁 Check logs/browser_activity/ for detailed recording of the search process"
-        )
+        print("📁 Check logs/sessions/ for detailed recording of the search process")
         return history
 
     except Exception as e:

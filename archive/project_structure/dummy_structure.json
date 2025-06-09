@@ -1,0 +1,74 @@
+{
+  "project": [
+    {
+      "path": "next.config.ts",
+      "usage": "Next.js configuration file"
+    },
+    {
+      "path": "tsconfig.json",
+      "usage": "TypeScript configuration file"
+    },
+    {
+      "path": "next-env.d.ts",
+      "usage": "Next.js TypeScript declarations"
+    },
+    {
+      "path": "package.json",
+      "usage": "Node.js project configuration and dependencies"
+    },
+    {
+      "path": "package-lock.json",
+      "usage": "Locked versions of npm dependencies"
+    },
+    {
+      "path": "components.json",
+      "usage": "shadcn/ui components configuration"
+    },
+    {
+      "path": "src/",
+      "usage": "Source code directory",
+      "children": [
+        {
+          "path": "lib/utils.ts",
+          "usage": "Utility functions"
+        },
+        {
+          "path": "components/ui/",
+          "usage": "shadcn/ui components",
+          "children": [
+            "select.tsx", "popover.tsx", "drawer.tsx", "slider.tsx",
+            "menubar.tsx", "dialog.tsx", "alert-dialog.tsx", "context-menu.tsx",
+            "collapsible.tsx", "separator.tsx", "radio-group.tsx", "toggle-group.tsx",
+            "carousel.tsx", "aspect-ratio.tsx", "table.tsx", "toggle.tsx",
+            "sheet.tsx", "switch.tsx", "command.tsx", "alert.tsx",
+            "tabs.tsx", "hover-card.tsx", "sidebar.tsx", "resizable.tsx",
+            "button.tsx", "tooltip.tsx", "skeleton.tsx", "form.tsx",
+            "badge.tsx", "breadcrumb.tsx", "scroll-area.tsx", "dropdown-menu.tsx",
+            "label.tsx", "textarea.tsx", "pagination.tsx", "avatar.tsx",
+            "sonner.tsx", "checkbox.tsx", "chart.tsx", "input.tsx",
+            "card.tsx", "calendar.tsx", "accordion.tsx", "navigation-menu.tsx",
+            "progress.tsx", "input-otp.tsx"
+          ]
+        },
+        {
+          "path": "hooks/use-mobile.ts",
+          "usage": "Custom hook for mobile detection"
+        },
+        {
+          "path": "app/",
+          "usage": "Next.js app directory",
+          "children": [
+            {
+              "path": "layout.tsx",
+              "usage": "Root layout component"
+            },
+            {
+              "path": "page.tsx",
+              "usage": "Home page component"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

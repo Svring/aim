@@ -193,7 +193,7 @@ async def run_codebase_agent(
         {
             "messages": [
                 HumanMessage(
-                    content="hello, the current project structure is not accurate so you need to read some files by yourself. After you've understand the current project structure, report back to me with the project structure."
+                    content="hello, the current project structure is not accurate so you need to read some files by yourself. After you've understand the current project structure, report back to me with the project structure in json format, with each file's usage and path."
                 )
             ],
             "project_structure": state["project_structure"],
